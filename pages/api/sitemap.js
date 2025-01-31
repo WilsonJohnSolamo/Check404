@@ -2,12 +2,30 @@ import puppeteer from "puppeteer"
 
 export async function fetchSitemapUrls(baseUrl) {
   try {
-    const browser = await puppeteer.launch()
+    // Normalize base URL
+    let normalizedUrl = baseUrl.trim()
+
+    // Ensure it starts with http or https
+    if (!/^https?:\/\//i.test(normalizedUrl)) {
+      normalizedUrl = `https://${normalizedUrl}`
+    }
+
+    // Ensure it includes "www." if missing
+    const urlObject = new URL(normalizedUrl)
+    if (!urlObject.hostname.startsWith("www.")) {
+      urlObject.hostname = `www.${urlObject.hostname}`
+    }
+    normalizedUrl = urlObject.toString() // Convert back to string
+
+    console.log(normalizedUrl, "normalizedBaseUrl")
+
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox"],
+    })
     const page = await browser.newPage()
 
-    const normalizedBaseUrl = baseUrl.replace(/\/+$/, "")
-    console.log(normalizedBaseUrl, "normalizedBaseUrl")
-    const sitemapUrl = `${normalizedBaseUrl}/sitemap-0.xml`
+    const sitemapUrl = `${normalizedUrl}/sitemap-0.xml`
 
     await page.goto(sitemapUrl)
 
@@ -56,9 +74,9 @@ export default async function handler(req, res) {
   if (urls.length === 0) {
     return res.status(404).json({ error: "No sitemap found" })
   }
+
   // Check the URLs for their status
   const checkResults = await checkUrls(urls)
 
   return res.status(200).json({ urls: checkResults })
-  // return res.status(200).json({ urls })
 }
